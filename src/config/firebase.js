@@ -1,11 +1,12 @@
-// Configuración de Firebase
+// src/config/firebase.js
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getReactNativePersistence, initializeAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 import { getStorage } from 'firebase/storage';
 
-// Tu configuración de Firebase (obtener de Firebase Console)
+// Tu configuración de Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyD7r4anODFPuOe6nRShw3VdARi_AOZYCLs",
   authDomain: "nutriandina-cded5.firebaseapp.com",
@@ -19,22 +20,15 @@ const firebaseConfig = {
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializar servicios
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
-export const functions = getFunctions(app, 'southamerica-east1'); // Región São Paulo
-
-// Configurar persistencia para React Native
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-    getReactNativePersistence,
-    initializeAuth
-} from 'firebase/auth';
-
-// Reemplazar auth con persistencia
-export const authWithPersistence = initializeAuth(app, {
+// Inicializar Auth con persistencia para React Native
+const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage)
 });
 
-export default app;
+// Inicializar otros servicios
+const db = getFirestore(app);
+const storage = getStorage(app);
+const functions = getFunctions(app, 'southamerica-east1');
+
+// Exportar todo
+export { app, auth, db, functions, storage };
