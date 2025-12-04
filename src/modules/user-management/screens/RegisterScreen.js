@@ -51,7 +51,10 @@ export default function RegisterScreen({ navigation }) {
   };
 
   const handleRegister = async () => {
+    console.log('🔵 Iniciando validación del formulario...');
+    
     if (!validateForm()) {
+      console.log('❌ Formulario inválido:', errors);
       setSnackbar({
         visible: true,
         message: 'Por favor corrige los errores en el formulario',
@@ -60,27 +63,36 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
+    console.log('✅ Formulario válido');
+    console.log('📧 Email:', formData.email);
+    console.log('👤 Nombre:', formData.displayName);
+    
     setLoading(true);
 
     try {
+      console.log('🔵 Llamando a register()...');
       const result = await register(
         formData.email,
         formData.password,
         formData.displayName
       );
       
+      console.log('📦 Resultado recibido:', JSON.stringify(result, null, 2));
+      
       if (result.success) {
+        console.log('✅ Registro exitoso!');
         setSnackbar({
           visible: true,
-          message: '¡Cuenta creada! Revisa tu email para verificar tu cuenta.',
+          message: result.message || '¡Cuenta creada! Revisa tu email para verificar tu cuenta.',
           type: 'success'
         });
         
-        // Esperar 2 segundos y navegar al cuestionario de salud
         setTimeout(() => {
+          console.log('🔵 Navegando a HealthQuestionnaire...');
           navigation.navigate('HealthQuestionnaire');
         }, 2000);
       } else {
+        console.log('❌ Registro falló:', result.error);
         setSnackbar({
           visible: true,
           message: result.error || 'Error al crear cuenta',
@@ -88,13 +100,19 @@ export default function RegisterScreen({ navigation }) {
         });
       }
     } catch (error) {
+      console.error('💥 Error capturado en catch:', error);
+      console.error('💥 Error name:', error.name);
+      console.error('💥 Error message:', error.message);
+      console.error('💥 Error stack:', error.stack);
+      
       setSnackbar({
         visible: true,
-        message: 'Error inesperado. Intenta nuevamente.',
+        message: error.message || 'Error inesperado. Intenta nuevamente.',
         type: 'error'
       });
     } finally {
       setLoading(false);
+      console.log('🔵 Proceso de registro finalizado');
     }
   };
 

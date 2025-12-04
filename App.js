@@ -4,7 +4,7 @@ import { StatusBar } from 'react-native';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { theme } from './src/config/theme';
-import { AuthProvider } from './src/context/AuthContext';
+import { AuthProvider } from './src/modules/user-management/context/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/SplashScreen';
 

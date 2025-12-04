@@ -1,7 +1,5 @@
 import { createStackNavigator } from '@react-navigation/stack';
-import { useAuth } from '../context/AuthContext';
-
-// Importar screens desde la ubicación correcta
+import { useAuth } from '../modules/user-management/context/AuthContext';
 import HealthQuestionnaireScreen from '../modules/user-management/screens/HealthQuestionnaireScreen';
 import LoginScreen from '../modules/user-management/screens/LoginScreen';
 import ProfileScreen from '../modules/user-management/screens/ProfileScreen';
@@ -30,9 +28,7 @@ export default function AppNavigator() {
           component={HealthQuestionnaireScreen} 
         />
       ) : (
-        <>
-          <Stack.Screen name="Profile" component={ProfileScreen} />
-        </>
+        <Stack.Screen name="Profile" component={ProfileScreen} />
       )}
     </Stack.Navigator>
   );

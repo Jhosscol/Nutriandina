@@ -45,23 +45,63 @@ export const AuthProvider = ({ children }) => {
 
   // Registrar nuevo usuario
   const register = async (email, password, displayName) => {
+    console.log('🟢 =================================');
+    console.log('🟢 AuthContext: register() llamado');
+    console.log('🟢 =================================');
+    console.log('📧 Email:', email);
+    console.log('👤 DisplayName:', displayName);
+    
     try {
       setLoading(true);
+      
+      console.log('🟢 Llamando a authService.register()...');
       const result = await authService.register(email, password, displayName);
       
+      console.log('📦 Resultado de authService:', JSON.stringify(result, null, 2));
+      
       if (result.success) {
-        await userService.createUserProfile(result.user.uid, {
-          email: result.user.email,
-          displayName: result.user.displayName,
-          emailVerified: result.user.emailVerified
-        });
+        console.log('✅ authService.register() exitoso');
+        console.log('🟢 Creando perfil en Firestore...');
+        console.log('🆔 UID:', result.user.uid);
+        
+        try {
+          const profileResult = await userService.createUserProfile(result.user.uid, {
+            email: result.user.email,
+            displayName: result.user.displayName,
+            emailVerified: result.user.emailVerified
+          });
+          
+          console.log('📦 Resultado de createUserProfile:', JSON.stringify(profileResult, null, 2));
+          
+          if (!profileResult.success) {
+            console.warn('⚠️ createUserProfile falló pero el usuario fue creado en Auth');
+          }
+        } catch (profileError) {
+          console.error('💥 Error creando perfil en Firestore:', profileError);
+          // No retornamos error aquí porque el usuario YA fue creado en Auth
+        }
+      } else {
+        console.log('❌ authService.register() falló:', result.error);
       }
       
       return result;
     } catch (error) {
-      return { success: false, error: error.message };
+      console.error('💥 =================================');
+      console.error('💥 AuthContext: Error capturado');
+      console.error('💥 =================================');
+      console.error('💥 Error:', error);
+      console.error('💥 Message:', error.message);
+      console.error('💥 Stack:', error.stack);
+      
+      return { 
+        success: false, 
+        error: error.message || 'Error desconocido en el registro' 
+      };
     } finally {
       setLoading(false);
+      console.log('🟢 =================================');
+      console.log('🟢 AuthContext: register() finalizado');
+      console.log('🟢 =================================');
     }
   };
 
