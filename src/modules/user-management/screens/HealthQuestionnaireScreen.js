@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { IconButton, ProgressBar, Surface, Text } from 'react-native-paper';
+import { guardarPerfilSalud } from '../../../services/mongodb';
 import { useAuth } from '../context/AuthContext';
 import { useHealthData } from '../context/HealthDataContext';
 import storageService from '../services/storageService';
@@ -108,26 +109,37 @@ export default function HealthQuestionnaireScreen({ navigation }) {
     setLoading(true);
     
     try {
-      // Guardar datos de salud
-      const result = await saveHealthData(formData);
+      console.log('🟢 Guardando datos de salud en MongoDB...');
+      console.log('📦 Datos a guardar:', JSON.stringify(formData, null, 2));
       
-      if (result.success) {
+      // Guardar en MongoDB
+      const resultado = await guardarPerfilSalud(formData);
+      
+      console.log('✅ Datos guardados en MongoDB:', resultado);
+      
+      if (resultado.success) {
+        // También guardar en el contexto local (si lo necesitas)
+        await saveHealthData(formData);
+        
         // Marcar perfil como completo
         await updateProfile({ isProfileComplete: true });
         
-        // Limpiar progreso guardado
+        console.log('✅ Perfil marcado como completo');
+        
+        // Limpiar progreso guardado localmente
         await storageService.clearQuestionnaireProgress();
         
-        // Navegar al dashboard principal
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'MainApp' }],
-        });
+        console.log('✅ Cuestionario completado exitosamente');
+        
+        // La navegación se hará automáticamente por el AuthContext
       } else {
-        setErrors({ submit: result.error || 'Error al guardar datos' });
+        throw new Error('Error al guardar en MongoDB');
       }
     } catch (error) {
-      setErrors({ submit: 'Error inesperado al completar el cuestionario' });
+      console.error('💥 Error guardando perfil de salud:', error);
+      setErrors({ 
+        submit: `Error al guardar: ${error.message}` 
+      });
     } finally {
       setLoading(false);
     }
