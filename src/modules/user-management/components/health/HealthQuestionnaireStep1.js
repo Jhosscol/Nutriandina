@@ -27,14 +27,27 @@ export default function HealthQuestionnaireStep1({ initialData = {}, onNext }) {
     }
     
     // Calcular IMC si cambian peso o altura
-    if ((field === 'weight' || field === 'height') && formData.weight && formData.height) {
+    if (field === 'weight' || field === 'height') {
       const weight = field === 'weight' ? parseFloat(value) : parseFloat(formData.weight);
       const height = field === 'height' ? parseFloat(value) : parseFloat(formData.height);
       
-      if (weight && height) {
+      if (weight && height && !isNaN(weight) && !isNaN(height)) {
         const bmi = calculateBMI(weight, height);
-        const category = getBMICategory(bmi);
-        setBmiInfo({ bmi, category });
+        
+        if (bmi) {
+          const category = getBMICategory(bmi);
+          
+          // ✅ PROTECCIÓN: Solo actualizar si category existe
+          if (category) {
+            setBmiInfo({ bmi, category });
+          } else {
+            setBmiInfo(null);
+          }
+        } else {
+          setBmiInfo(null);
+        }
+      } else {
+        setBmiInfo(null);
       }
     }
   };
@@ -123,11 +136,14 @@ export default function HealthQuestionnaireStep1({ initialData = {}, onNext }) {
       {errors.height && <Text style={styles.errorText}>{errors.height}</Text>}
 
       {/* IMC Info */}
-      {bmiInfo && (
+      {bmiInfo && bmiInfo.category && (
         <Card style={styles.bmiCard}>
           <Card.Content>
             <Text variant="titleMedium">Tu IMC: {bmiInfo.bmi}</Text>
-            <Text variant="bodyMedium" style={{ color: bmiInfo.category.color }}>
+            <Text 
+              variant="bodyMedium" 
+              style={{ color: bmiInfo.category.color }}
+            >
               {bmiInfo.category.label}
             </Text>
           </Card.Content>

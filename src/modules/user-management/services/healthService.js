@@ -56,34 +56,51 @@ class HealthService {
   }
 
   // ===== PROCESAR CUESTIONARIO DE SALUD =====
+  // ===== PROCESAR CUESTIONARIO DE SALUD =====
   processHealthQuestionnaire(questionnaireData) {
+    console.log('🔵 processHealthQuestionnaire - data recibida:', questionnaireData);
+    
     const {
-      basicInfo,
-      conditions,
-      allergies,
-      preferences
+      basicInfo = {},
+      conditions = [],
+      allergies = [],
+      preferences = {}
     } = questionnaireData;
 
+    console.log('📦 Después de destructuring:');
+    console.log('  - basicInfo:', basicInfo);
+    console.log('  - conditions:', conditions);
+    console.log('  - allergies:', allergies);
+    console.log('  - preferences:', preferences);
+
+    // Asegurarse de que son arrays
+    const safeConditions = Array.isArray(conditions) ? conditions : [];
+    const safeAllergies = Array.isArray(allergies) ? allergies : [];
+
+    console.log('✅ Arrays seguros:');
+    console.log('  - safeConditions:', safeConditions);
+    console.log('  - safeAllergies:', safeAllergies);
+
     // Calcular restricciones dietéticas basadas en condiciones
-    const dietaryRestrictions = this.calculateDietaryRestrictions(conditions);
+    const dietaryRestrictions = this.calculateDietaryRestrictions(safeConditions);
 
     // Calcular métricas requeridas
-    const requiredMetrics = this.calculateRequiredMetrics(conditions);
+    const requiredMetrics = this.calculateRequiredMetrics(safeConditions);
 
     // Generar recomendaciones
     const recommendations = this.generateRecommendations(
-      conditions,
-      allergies,
+      safeConditions,
+      safeAllergies,
       preferences
     );
 
     // Calcular nivel de riesgo
-    const riskLevel = this.calculateRiskLevel(conditions, basicInfo);
+    const riskLevel = this.calculateRiskLevel(safeConditions, basicInfo);
 
-    return {
+    const processedData = {
       basicInfo,
-      conditions,
-      allergies,
+      conditions: safeConditions,
+      allergies: safeAllergies,
       preferences,
       dietaryRestrictions,
       requiredMetrics,
@@ -91,6 +108,9 @@ class HealthService {
       riskLevel,
       processedAt: new Date().toISOString()
     };
+
+    console.log('✅ Datos procesados finales:', processedData);
+    return processedData;
   }
 
   // ===== CALCULAR RESTRICCIONES DIETÉTICAS =====
@@ -111,10 +131,14 @@ class HealthService {
   }
 
   // ===== CALCULAR MÉTRICAS REQUERIDAS =====
+  // ===== CALCULAR MÉTRICAS REQUERIDAS =====
   calculateRequiredMetrics(conditions) {
     const metrics = new Set(['weight', 'height', 'bmi']); // Métricas básicas siempre
 
-    conditions.forEach(conditionId => {
+    // Protección: asegurarse de que conditions es un array
+    const safeConditions = Array.isArray(conditions) ? conditions : [];
+
+    safeConditions.forEach(conditionId => {
       const condition = HEALTH_CONDITIONS.find(c => c.id === conditionId);
       if (condition && condition.requiresMonitoring) {
         condition.requiresMonitoring.forEach(m => metrics.add(m));
@@ -128,8 +152,12 @@ class HealthService {
   generateRecommendations(conditions, allergies, preferences) {
     const recommendations = [];
 
+    // Protección: asegurarse de que son arrays
+    const safeConditions = Array.isArray(conditions) ? conditions : [];
+    const safeAllergies = Array.isArray(allergies) ? allergies : [];
+
     // Recomendaciones basadas en condiciones
-    if (conditions.includes('diabetes_type2') || conditions.includes('prediabetes')) {
+    if (safeConditions.includes('diabetes_type2') || safeConditions.includes('prediabetes')) {
       recommendations.push({
         type: 'nutrition',
         priority: 'high',
@@ -139,7 +167,7 @@ class HealthService {
       });
     }
 
-    if (conditions.includes('hypertension')) {
+    if (safeConditions.includes('hypertension')) {
       recommendations.push({
         type: 'nutrition',
         priority: 'high',
@@ -149,7 +177,7 @@ class HealthService {
       });
     }
 
-    if (conditions.includes('anemia')) {
+    if (safeConditions.includes('anemia')) {
       recommendations.push({
         type: 'nutrition',
         priority: 'high',
@@ -160,7 +188,7 @@ class HealthService {
     }
 
     // Recomendaciones basadas en alergias
-    if (allergies.includes('gluten') || allergies.includes('wheat')) {
+    if (safeAllergies.includes('gluten') || safeAllergies.includes('wheat')) {
       recommendations.push({
         type: 'nutrition',
         priority: 'high',

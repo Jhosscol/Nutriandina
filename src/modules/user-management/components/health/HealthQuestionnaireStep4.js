@@ -19,12 +19,19 @@ export default function HealthQuestionnaireStep4({ initialData = {}, onNext, onB
   const [newFavorite, setNewFavorite] = useState('');
 
   const toggleGoal = (goalId) => {
-    setPreferences(prev => ({
-      ...prev,
-      selectedGoals: prev.selectedGoals.includes(goalId)
+    setPreferences(prev => {
+      const isSelected = prev.selectedGoals.includes(goalId);
+      const updatedGoals = isSelected
         ? prev.selectedGoals.filter(id => id !== goalId)
-        : [...prev.selectedGoals, goalId]
-    }));
+        : [...prev.selectedGoals, goalId];
+      
+      console.log('Toggling goal:', goalId, 'New goals:', updatedGoals); // Debug
+      
+      return {
+        ...prev,
+        selectedGoals: updatedGoals
+      };
+    });
   };
 
   const addDislike = () => {
@@ -62,6 +69,7 @@ export default function HealthQuestionnaireStep4({ initialData = {}, onNext, onB
   };
 
   const handleNext = () => {
+    console.log('Sending preferences:', preferences); // Debug
     onNext(preferences);
   };
 
@@ -115,19 +123,34 @@ export default function HealthQuestionnaireStep4({ initialData = {}, onNext, onB
           </Text>
 
           <View style={styles.goalsContainer}>
-            {HEALTH_GOALS.map(goal => (
-              <Chip
-                key={goal.id}
-                selected={preferences.selectedGoals.includes(goal.id)}
-                onPress={() => toggleGoal(goal.id)}
-                style={styles.goalChip}
-                icon={goal.icon}
-                showSelectedCheck
-              >
-                {goal.title}
-              </Chip>
-            ))}
+            {HEALTH_GOALS.map(goal => {
+              const isSelected = preferences.selectedGoals.includes(goal.id);
+              return (
+                <Chip
+                  key={goal.id}
+                  selected={isSelected}
+                  onPress={() => toggleGoal(goal.id)}
+                  style={styles.goalChip}
+                  icon={goal.icon}
+                  mode="outlined"
+                  showSelectedCheck
+                >
+                  {goal.title}
+                </Chip>
+              );
+            })}
           </View>
+
+          {/* Mostrar objetivos seleccionados para debugging */}
+          {preferences.selectedGoals.length > 0 && (
+            <Card style={styles.debugCard}>
+              <Card.Content>
+                <Text variant="bodySmall">
+                  ✓ {preferences.selectedGoals.length} objetivo(s) seleccionado(s)
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
         </Card.Content>
       </Card>
 
@@ -293,6 +316,10 @@ const styles = StyleSheet.create({
   },
   goalChip: {
     marginBottom: 8,
+  },
+  debugCard: {
+    marginTop: 12,
+    backgroundColor: '#E8F5E9',
   },
   inputRow: {
     flexDirection: 'row',

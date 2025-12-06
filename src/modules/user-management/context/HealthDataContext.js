@@ -5,6 +5,7 @@ import healthService from '../services/healthService';
 import storageService from '../services/storageService';
 import { useAuth } from './AuthContext';
 
+
 const HealthDataContext = createContext({});
 
 export const HealthDataProvider = ({ children }) => {
