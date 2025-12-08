@@ -106,44 +106,56 @@ export default function HealthQuestionnaireScreen({ navigation }) {
   };
 
   const handleComplete = async () => {
-    setLoading(true);
+  setLoading(true);
+  
+  try {
+    console.log('🟢 === INICIO GUARDADO DE PERFIL ===');
+    console.log('📦 Datos completos a guardar:', JSON.stringify(formData, null, 2));
     
-    try {
-      console.log('🟢 Guardando datos de salud en MongoDB...');
-      console.log('📦 Datos a guardar:', JSON.stringify(formData, null, 2));
+    // Guardar en MongoDB
+    console.log('📡 Llamando a guardarPerfilSalud...');
+    const resultado = await guardarPerfilSalud(formData);
+    
+    console.log('✅ Respuesta de guardarPerfilSalud:', JSON.stringify(resultado, null, 2));
+    
+    if (resultado.success) {
+      console.log('✅ Perfil guardado exitosamente en MongoDB');
+      console.log('📋 ID del perfil:', resultado.id || resultado._id);
       
-      // Guardar en MongoDB
-      const resultado = await guardarPerfilSalud(formData);
+      // También guardar en el contexto local
+      await saveHealthData(formData);
       
-      console.log('✅ Datos guardados en MongoDB:', resultado);
+      // Marcar perfil como completo
+      await updateProfile({ isProfileComplete: true });
       
-      if (resultado.success) {
-        // También guardar en el contexto local (si lo necesitas)
-        await saveHealthData(formData);
-        
-        // Marcar perfil como completo
-        await updateProfile({ isProfileComplete: true });
-        
-        console.log('✅ Perfil marcado como completo');
-        
-        // Limpiar progreso guardado localmente
-        await storageService.clearQuestionnaireProgress();
-        
-        console.log('✅ Cuestionario completado exitosamente');
-        
-        // La navegación se hará automáticamente por el AuthContext
-      } else {
-        throw new Error('Error al guardar en MongoDB');
-      }
-    } catch (error) {
-      console.error('💥 Error guardando perfil de salud:', error);
-      setErrors({ 
-        submit: `Error al guardar: ${error.message}` 
-      });
-    } finally {
-      setLoading(false);
+      console.log('✅ Perfil marcado como completo');
+      
+      // Limpiar progreso guardado
+      await storageService.clearQuestionnaireProgress();
+      
+      console.log('🎉 === FIN GUARDADO EXITOSO ===');
+      
+      // La navegación se maneja en HealthSummary
+      
+    } else {
+      console.error('❌ resultado.success es false');
+      console.error('❌ Detalles:', resultado);
+      throw new Error(resultado.message || 'Error al guardar en MongoDB');
     }
-  };
+  } catch (error) {
+    console.error('💥 === ERROR EN HANDLECOMPLETE ===');
+    console.error('💥 Error tipo:', error.name);
+    console.error('💥 Error mensaje:', error.message);
+    console.error('💥 Error stack:', error.stack);
+    console.error('💥 Error completo:', JSON.stringify(error, null, 2));
+    
+    setErrors({ 
+      submit: `Error al guardar: ${error.message}` 
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   const renderStep = () => {
     const stepProps = {
@@ -169,6 +181,7 @@ export default function HealthQuestionnaireScreen({ navigation }) {
             onBack={handleBack}
             loading={loading}
             error={errors.submit}
+            navigation={navigation}
           />
         );
       default:
