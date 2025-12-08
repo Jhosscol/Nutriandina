@@ -8,6 +8,7 @@ import { useHealthData } from '../context/HealthDataContext';
 import storageService from '../services/storageService';
 
 // Importar los pasos del cuestionario
+import { Alert } from 'react-native'; // ✅ Agregar este import al inicio
 import Step1BasicInfo from '../components/health/HealthQuestionnaireStep1';
 import Step2Conditions from '../components/health/HealthQuestionnaireStep2';
 import Step3Allergies from '../components/health/HealthQuestionnaireStep3';
@@ -106,56 +107,72 @@ export default function HealthQuestionnaireScreen({ navigation }) {
   };
 
   const handleComplete = async () => {
-  setLoading(true);
-  
-  try {
-    console.log('🟢 === INICIO GUARDADO DE PERFIL ===');
-    console.log('📦 Datos completos a guardar:', JSON.stringify(formData, null, 2));
+    setLoading(true);
     
-    // Guardar en MongoDB
-    console.log('📡 Llamando a guardarPerfilSalud...');
-    const resultado = await guardarPerfilSalud(formData);
-    
-    console.log('✅ Respuesta de guardarPerfilSalud:', JSON.stringify(resultado, null, 2));
-    
-    if (resultado.success) {
-      console.log('✅ Perfil guardado exitosamente en MongoDB');
-      console.log('📋 ID del perfil:', resultado.id || resultado._id);
+    try {
+      console.log('🟢 === INICIO GUARDADO DE PERFIL ===');
+      console.log('📦 Datos completos a guardar:', JSON.stringify(formData, null, 2));
       
-      // También guardar en el contexto local
-      await saveHealthData(formData);
+      // Guardar en MongoDB
+      console.log('📡 Llamando a guardarPerfilSalud...');
+      const resultado = await guardarPerfilSalud(formData);
       
-      // Marcar perfil como completo
-      await updateProfile({ isProfileComplete: true });
+      console.log('✅ Respuesta de guardarPerfilSalud:', JSON.stringify(resultado, null, 2));
       
-      console.log('✅ Perfil marcado como completo');
+      if (resultado.success) {
+        console.log('✅ Perfil guardado exitosamente en MongoDB');
+        console.log('📋 ID del perfil:', resultado.id || resultado._id);
+        
+        // También guardar en el contexto local
+        await saveHealthData(formData);
+        
+        // Marcar perfil como completo
+        await updateProfile({ isProfileComplete: true });
+        
+        console.log('✅ Perfil marcado como completo');
+        
+        // Limpiar progreso guardado
+        await storageService.clearQuestionnaireProgress();
+        
+        console.log('🎉 === FIN GUARDADO EXITOSO ===');
+        
+        // ✅ MOSTRAR ALERT DE ÉXITO
+        Alert.alert(
+          '¡Perfil Completado! 🎉',
+          'Tu plan nutricional personalizado está listo. Ahora puedes explorar recetas andinas, crear planes de comidas y alcanzar tus objetivos de salud.',
+          [
+            {
+              text: 'Empezar',
+              onPress: () => {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'Main' }],
+                });
+              }
+            }
+          ],
+          { cancelable: false } // No se puede cerrar tocando fuera
+        );
+        
+      } else {
+        console.error('❌ resultado.success es false');
+        console.error('❌ Detalles:', resultado);
+        throw new Error(resultado.message || 'Error al guardar en MongoDB');
+      }
+    } catch (error) {
+      console.error('💥 === ERROR EN HANDLECOMPLETE ===');
+      console.error('💥 Error tipo:', error.name);
+      console.error('💥 Error mensaje:', error.message);
+      console.error('💥 Error stack:', error.stack);
+      console.error('💥 Error completo:', JSON.stringify(error, null, 2));
       
-      // Limpiar progreso guardado
-      await storageService.clearQuestionnaireProgress();
-      
-      console.log('🎉 === FIN GUARDADO EXITOSO ===');
-      
-      // La navegación se maneja en HealthSummary
-      
-    } else {
-      console.error('❌ resultado.success es false');
-      console.error('❌ Detalles:', resultado);
-      throw new Error(resultado.message || 'Error al guardar en MongoDB');
+      setErrors({ 
+        submit: `Error al guardar: ${error.message}` 
+      });
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('💥 === ERROR EN HANDLECOMPLETE ===');
-    console.error('💥 Error tipo:', error.name);
-    console.error('💥 Error mensaje:', error.message);
-    console.error('💥 Error stack:', error.stack);
-    console.error('💥 Error completo:', JSON.stringify(error, null, 2));
-    
-    setErrors({ 
-      submit: `Error al guardar: ${error.message}` 
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const renderStep = () => {
     const stepProps = {

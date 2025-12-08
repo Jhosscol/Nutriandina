@@ -6,7 +6,7 @@ import { HEALTH_GOALS } from '../../constants/goals';
 import { HEALTH_CONDITIONS } from '../../constants/healthConditions';
 import { calculateBMI, getBMICategory } from '../../utils/calculations';
 
-export default function HealthSummary({ data, onComplete, onBack, loading, error, navigation }) {
+export default function HealthSummary({ data, onComplete, onBack, loading, error }) {
   const { basicInfo, conditions, allergies, preferences } = data;
 
   const bmi = calculateBMI(parseFloat(basicInfo.weight), parseFloat(basicInfo.height));
@@ -25,16 +25,6 @@ export default function HealthSummary({ data, onComplete, onBack, loading, error
   const getGoalTitle = (id) => {
     const goal = HEALTH_GOALS.find(g => g.id === id);
     return goal ? goal.title : id;
-  };
-
-  // 🎯 Manejar el completado y navegar a Welcome
-  const handleCompleteAndNavigate = async () => {
-    await onComplete(); // Ejecuta la lógica de guardado
-    
-    // Solo navega si no hay errores
-    if (!error) {
-      navigation.navigate('Welcome');
-    }
   };
 
   return (
@@ -213,7 +203,7 @@ export default function HealthSummary({ data, onComplete, onBack, loading, error
         </Button>
         <Button
           mode="contained"
-          onPress={handleCompleteAndNavigate}
+          onPress={onComplete}
           loading={loading}
           disabled={loading}
           style={styles.completeButton}
