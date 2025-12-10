@@ -15,10 +15,7 @@
     "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/slider": "5.0.1",
-<<<<<<< HEAD
     "@react-native-picker/picker": "^2.11.4",
-=======
->>>>>>> ab7a124fb3a5517e936ea6d724df028b94f05a51
     "@react-navigation/bottom-tabs": "^7.8.11",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.24",
