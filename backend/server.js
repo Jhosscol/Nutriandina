@@ -247,7 +247,153 @@ async function generarMenusDiarios(db, duration, userProfile, objetivoSalud) {
 }
 
 // Generar listas de compras semanales
-function generarListasCompras(dailyMenus, duration) {
+/**
+ * Genera listas de compras semanales basadas en los ingredientes reales
+ * de las recetas incluidas en el plan
+ */
+async function generarListasComprasReales(db, dailyMenus, duration) {
+  try {
+    console.log('🛒 Generando listas de compras desde recetas reales...');
+    
+    const totalWeeks = Math.ceil(duration / 7);
+    const shoppingLists = [];
+    
+    // Obtener todos los IDs de recetas únicas del plan
+    const recipeIds = new Set();
+    dailyMenus.forEach(dayMenu => {
+      const meals = dayMenu.meals;
+      if (meals.breakfast?.recipeId) recipeIds.add(meals.breakfast.recipeId);
+      if (meals.lunch?.recipeId) recipeIds.add(meals.lunch.recipeId);
+      if (meals.dinner?.recipeId) recipeIds.add(meals.dinner.recipeId);
+      meals.snacks?.forEach(snack => {
+        if (snack.recipeId) recipeIds.add(snack.recipeId);
+      });
+    });
+    
+    console.log(`📋 Total de recetas únicas en el plan: ${recipeIds.size}`);
+    
+    // Obtener todas las recetas con sus ingredientes desde MongoDB
+    const recetas = await db.collection('recipes')
+      .find({ 
+        _id: { $in: Array.from(recipeIds).map(id => new ObjectId(id)) }
+      })
+      .toArray();
+    
+    // Crear un mapa de recetas para acceso rápido
+    const recetasMap = {};
+    recetas.forEach(receta => {
+      recetasMap[receta._id.toString()] = receta;
+    });
+    
+    console.log(`✅ ${recetas.length} recetas cargadas con ingredientes`);
+    
+    // Generar lista para cada semana
+    for (let week = 1; week <= totalWeeks; week++) {
+      const startDay = (week - 1) * 7 + 1;
+      const endDay = Math.min(week * 7, duration);
+      
+      console.log(`📅 Procesando semana ${week} (días ${startDay}-${endDay})`);
+      
+      // Consolidar ingredientes de todos los días de esta semana
+      const ingredientesConsolidados = {};
+      
+      // Iterar sobre los días de esta semana
+      for (let day = startDay; day <= endDay; day++) {
+        const dayMenu = dailyMenus.find(m => m.day === day);
+        if (!dayMenu) continue;
+        
+        // Procesar cada comida del día
+        const comidas = [
+          dayMenu.meals.breakfast,
+          dayMenu.meals.lunch,
+          dayMenu.meals.dinner,
+          ...(dayMenu.meals.snacks || [])
+        ];
+        
+        comidas.forEach(comida => {
+          if (!comida || !comida.recipeId) return;
+          
+          const receta = recetasMap[comida.recipeId];
+          if (!receta || !receta.ingredients) return;
+          
+          // Agregar ingredientes de esta receta
+          receta.ingredients.forEach(ingrediente => {
+            const foodId = ingrediente.foodId?.toString() || 'unknown';
+            
+            // 🔥 COMPATIBILIDAD: Soportar 'foodName' o 'name'
+            const foodName = ingrediente.foodName || ingrediente.name || 'Ingrediente';
+            
+            const quantity = parseFloat(ingrediente.quantity) || 0;
+            const unit = ingrediente.unit || 'unidad';
+            
+            // 🔥 Si no tiene categoría, obtenerla del foodId o usar 'otros'
+            let category = ingrediente.category || 'otros';
+            
+            // Consolidar por nombre de alimento Y unidad
+            // (por si el mismo alimento aparece en diferentes unidades)
+            const key = `${foodName}-${unit}`;
+            
+            if (!ingredientesConsolidados[key]) {
+              ingredientesConsolidados[key] = {
+                foodId,
+                foodName,
+                totalQuantity: 0,
+                unit,
+                category
+              };
+            }
+            
+            // Sumar la cantidad del ingrediente
+            ingredientesConsolidados[key].totalQuantity += quantity;
+          });
+        });
+      }
+      
+      // Convertir a array y redondear cantidades
+      const items = Object.values(ingredientesConsolidados).map(item => ({
+        ...item,
+        totalQuantity: Math.round(item.totalQuantity * 10) / 10 // Redondear a 1 decimal
+      }));
+      
+      // Ordenar por categoría
+      items.sort((a, b) => {
+        if (a.category < b.category) return -1;
+        if (a.category > b.category) return 1;
+        return a.foodName.localeCompare(b.foodName);
+      });
+      
+      console.log(`  ✓ Semana ${week}: ${items.length} ingredientes únicos`);
+      
+      // Calcular costo estimado (opcional)
+      const totalEstimatedCost = items.length * 3.5; // Estimación básica
+      
+      shoppingLists.push({
+        week,
+        startDay,
+        endDay,
+        items,
+        totalItems: items.length,
+        totalEstimatedCost: Math.round(totalEstimatedCost)
+      });
+    }
+    
+    console.log(`✅ ${shoppingLists.length} listas de compras generadas`);
+    return shoppingLists;
+    
+  } catch (error) {
+    console.error('❌ Error al generar listas de compras:', error);
+    // Fallback a lista genérica si falla
+    return generarListasComprasFallback(duration);
+  }
+}
+
+/**
+ * Función fallback en caso de error
+ * 🔥 ESTRUCTURA CORRECTA: foodName, totalQuantity, unit, category
+ */
+function generarListasComprasFallback(duration) {
+  console.warn('⚠️ Usando lista de compras FALLBACK (genérica)');
+  
   const totalWeeks = Math.ceil(duration / 7);
   const shoppingLists = [];
   
@@ -255,25 +401,27 @@ function generarListasCompras(dailyMenus, duration) {
     const startDay = (week - 1) * 7 + 1;
     const endDay = Math.min(week * 7, duration);
     
-    // Ingredientes básicos para cada semana
-    const items = [
-      { name: 'Quinua', quantity: '500g', category: 'Granos' },
-      { name: 'Pollo', quantity: '1kg', category: 'Proteínas' },
-      { name: 'Verduras variadas', quantity: '2kg', category: 'Verduras' },
-      { name: 'Frutas de temporada', quantity: '1kg', category: 'Frutas' },
-      { name: 'Huevos', quantity: '12 unidades', category: 'Proteínas' },
-      { name: 'Leche', quantity: '1L', category: 'Lácteos' }
-    ];
-    
     shoppingLists.push({
       week,
-      items,
+      startDay,
+      endDay,
+      items: [
+        { foodName: 'Quinua', totalQuantity: 500, unit: 'g', category: 'cereal' },
+        { foodName: 'Kiwicha', totalQuantity: 300, unit: 'g', category: 'cereal' },
+        { foodName: 'Pollo', totalQuantity: 1000, unit: 'g', category: 'proteina' },
+        { foodName: 'Huevos', totalQuantity: 12, unit: 'unidades', category: 'proteina' },
+        { foodName: 'Verduras variadas', totalQuantity: 2000, unit: 'g', category: 'verdura' },
+        { foodName: 'Frutas de temporada', totalQuantity: 1000, unit: 'g', category: 'fruta' },
+        { foodName: 'Leche', totalQuantity: 1, unit: 'litro', category: 'lacteo' }
+      ],
+      totalItems: 7,
       totalEstimatedCost: 50
     });
   }
   
   return shoppingLists;
 }
+
 
 // ====== RUTAS ESPECÍFICAS DE NUTRITION ======
 
@@ -458,8 +606,13 @@ app.post('/api/nutrition/nutritionplans', verificarToken, async (req, res) => {
     // Calcular calorías objetivo
     const caloriasObjetivo = calcularCaloriasObjetivo(userProfile, perfil.objetivoSalud);
     
-    // Generar listas de compras
-    const weeklyShoppingLists = generarListasCompras(dailyMenus, duration);
+    
+    // 🔥 USAR LA NUEVA FUNCIÓN PARA GENERAR LISTAS DE COMPRAS
+    const weeklyShoppingLists = await generarListasCompras(
+      db,
+      dailyMenus,
+      duration
+    );
     
     // Crear plan completo
     const plan = {
