@@ -19,9 +19,15 @@ export default function ShoppingListScreen({ route, navigation }) {
     try {
       setLoading(true);
       const response = await getShoppingList(week);
+      
+      console.log('✅ Lista de compras obtenida');
+      console.log(`📦 Total de items: ${response.data?.items?.length || 0}`);
+      
       setShoppingList(response.data);
+      
     } catch (error) {
-      Alert.alert('Error', 'No se pudo cargar la lista de compras');
+      console.error('❌ Error completo:', error);
+      Alert.alert('Error', 'No se pudo cargar la lista de compras: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -35,46 +41,31 @@ export default function ShoppingListScreen({ route, navigation }) {
   };
 
   const getItemsByCategory = () => {
-    if (!shoppingList || !shoppingList.items) return {};
+    // SIN CATEGORIZACIÓN - Devolver todos los items en una sola categoría
+    if (!shoppingList || !shoppingList.items) {
+      console.warn('⚠️ No hay shoppingList o items');
+      return {};
+    }
     
-    const grouped = {};
-    shoppingList.items.forEach(item => {
-      const category = item.category || 'otros';
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
-      grouped[category].push(item);
-    });
-    return grouped;
+    if (!Array.isArray(shoppingList.items)) {
+      console.error('❌ items NO es un array:', typeof shoppingList.items);
+      return {};
+    }
+    
+    console.log(`✅ Mostrando ${shoppingList.items.length} items (sin categorización)`);
+    
+    // Devolver todos los items en una sola categoría "Lista de Compras"
+    return {
+      'todos': shoppingList.items
+    };
   };
 
   const getCategoryIcon = (category) => {
-    switch (category) {
-      case 'cereal': return 'barley';
-      case 'legumbre': return 'seed';
-      case 'tuberculo': return 'potato';
-      case 'fruta': return 'fruit-cherries';
-      case 'verdura': return 'leaf';
-      case 'proteina': return 'food-drumstick';
-      case 'lacteo': return 'cheese';
-      case 'fruto_seco': return 'peanut';
-      default: return 'food';
-    }
+    return 'cart-outline'; // Ícono simple de carrito para todos
   };
 
   const getCategoryLabel = (category) => {
-    const labels = {
-      cereal: 'Cereales',
-      legumbre: 'Legumbres',
-      tuberculo: 'Tubérculos',
-      fruta: 'Frutas',
-      verdura: 'Verduras',
-      proteina: 'Proteínas',
-      lacteo: 'Lácteos',
-      fruto_seco: 'Frutos Secos',
-      otros: 'Otros'
-    };
-    return labels[category] || category;
+    return 'Lista de Compras'; // Título simple sin categorías
   };
 
   const getCheckedCount = () => {
@@ -82,11 +73,12 @@ export default function ShoppingListScreen({ route, navigation }) {
   };
 
   const getTotalItems = () => {
-    return shoppingList?.items?.length || 0;
+    const total = shoppingList?.items?.length || 0;
+    console.log('🔍 getTotalItems:', total);
+    return total;
   };
 
   const shareList = () => {
-    // Aquí podrías implementar compartir la lista por WhatsApp, email, etc.
     Alert.alert('Compartir', 'Función de compartir en desarrollo');
   };
 
@@ -98,7 +90,11 @@ export default function ShoppingListScreen({ route, navigation }) {
     );
   }
 
+  console.log('🔍 RENDER - shoppingList:', shoppingList ? 'Existe' : 'null');
+  console.log('🔍 RENDER - items.length:', shoppingList?.items?.length);
+
   if (!shoppingList || !shoppingList.items || shoppingList.items.length === 0) {
+    console.warn('⚠️ Mostrando pantalla vacía');
     return (
       <View style={styles.centerContainer}>
         <MaterialCommunityIcons name="cart-off" size={80} color="#999" />
@@ -108,12 +104,22 @@ export default function ShoppingListScreen({ route, navigation }) {
         <Text variant="bodyMedium" style={styles.emptySubtext}>
           No hay ingredientes para esta semana
         </Text>
+        <Button 
+          mode="outlined" 
+          onPress={() => navigation.goBack()}
+          style={{ marginTop: 20 }}
+        >
+          Volver
+        </Button>
       </View>
     );
   }
 
   const itemsByCategory = getItemsByCategory();
-  const progress = getTotalItems() > 0 ? getCheckedCount() / getTotalItems() : 0;
+  const totalItems = getTotalItems();
+  const progress = totalItems > 0 ? getCheckedCount() / totalItems : 0;
+
+  console.log('✅ Renderizando lista con', totalItems, 'items');
 
   return (
     <View style={styles.container}>
@@ -126,7 +132,7 @@ export default function ShoppingListScreen({ route, navigation }) {
                 Semana {week}
               </Text>
               <Text variant="bodyMedium" style={styles.progressText}>
-                {getCheckedCount()} de {getTotalItems()} items comprados
+                {getCheckedCount()} de {totalItems} items comprados
               </Text>
             </View>
             <View style={styles.progressCircle}>
@@ -151,52 +157,63 @@ export default function ShoppingListScreen({ route, navigation }) {
           </Card.Content>
         </Card>
 
-        {/* Items por categoría */}
-        {Object.entries(itemsByCategory).map(([category, items]) => (
-          <Card key={category} style={styles.categoryCard}>
+        {/* Items sin categorización */}
+        {Object.entries(itemsByCategory).length === 0 ? (
+          <Card style={styles.categoryCard}>
             <Card.Content>
-              <View style={styles.categoryHeader}>
-                <MaterialCommunityIcons
-                  name={getCategoryIcon(category)}
-                  size={28}
-                  color="#2E7D32"
-                />
-                <Text variant="titleLarge" style={styles.categoryTitle}>
-                  {getCategoryLabel(category)}
-                </Text>
-                <Chip style={styles.categoryChip}>
-                  {items.length}
-                </Chip>
-              </View>
-
-              <Divider style={styles.divider} />
-
-              {items.map((item, index) => (
-                <View key={index} style={styles.itemRow}>
-                  <Checkbox
-                    status={checkedItems[`${category}-${index}`] ? 'checked' : 'unchecked'}
-                    onPress={() => toggleItem(`${category}-${index}`)}
-                    color="#2E7D32"
-                  />
-                  <View style={styles.itemInfo}>
-                    <Text
-                      variant="titleMedium"
-                      style={[
-                        styles.itemName,
-                        checkedItems[`${category}-${index}`] && styles.itemChecked
-                      ]}
-                    >
-                      {item.foodName}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.itemQuantity}>
-                      {item.totalQuantity} {item.unit}
-                    </Text>
-                  </View>
-                </View>
-              ))}
+              <Text>No se pudieron cargar los items</Text>
             </Card.Content>
           </Card>
-        ))}
+        ) : (
+          Object.entries(itemsByCategory).map(([category, items]) => (
+            <Card key={category} style={styles.categoryCard}>
+              <Card.Content>
+                <View style={styles.categoryHeader}>
+                  <MaterialCommunityIcons
+                    name={getCategoryIcon(category)}
+                    size={28}
+                    color="#2E7D32"
+                  />
+                  <Text variant="titleLarge" style={styles.categoryTitle}>
+                    {getCategoryLabel(category)}
+                  </Text>
+                  <Chip style={styles.categoryChip}>
+                    {items.length}
+                  </Chip>
+                </View>
+
+                <Divider style={styles.divider} />
+
+                {items.map((item, index) => (
+                  <View key={index} style={styles.itemRow}>
+                    <Checkbox
+                      status={checkedItems[`${category}-${index}`] ? 'checked' : 'unchecked'}
+                      onPress={() => toggleItem(`${category}-${index}`)}
+                      color="#2E7D32"
+                    />
+                    <View style={styles.itemInfo}>
+                      <Text
+                        variant="titleMedium"
+                        style={[
+                          styles.itemName,
+                          checkedItems[`${category}-${index}`] && styles.itemChecked
+                        ]}
+                      >
+                        {item.foodName || item.name || 'Sin nombre'}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.itemQuantity}>
+                        {item.totalQuantity 
+                          ? `${item.totalQuantity} ${item.unit || ''}`
+                          : item.quantity || '0'
+                        }
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </Card.Content>
+            </Card>
+          ))
+        )}
 
         {/* Botón para comprar en marketplace */}
         <Card style={styles.marketplaceCard}>
@@ -214,7 +231,7 @@ export default function ShoppingListScreen({ route, navigation }) {
                 icon="cart"
                 onPress={() => navigation.navigate('Marketplace')}
                 style={styles.marketplaceButton}
-                disabled // Deshabilitado hasta que el Módulo 4 esté listo
+                disabled
               >
                 Ir al Marketplace
               </Button>
