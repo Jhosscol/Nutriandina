@@ -2,15 +2,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
-    Dimensions,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Alert,
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
+import { cloudinaryService } from '../../../services/cloudinaryService';
+import { cartService } from '../services/cart';
 import { marketplaceProductsService } from '../services/products';
 
 const { width } = Dimensions.get('window');
@@ -22,21 +24,31 @@ export default function ProductDetailScreen({ route, navigation }) {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [inCart, setInCart] = useState(false);
+  const [cartQuantity, setCartQuantity] = useState(0);
 
   useEffect(() => {
     loadProduct();
+    checkIfInCart();
   }, [productId]);
+
+  // Recargar estado del carrito cuando volvemos a esta pantalla
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      checkIfInCart();
+    });
+
+    return unsubscribe;
+  }, [navigation, productId]);
 
   const loadProduct = async () => {
     setLoading(true);
 
-    // Obtener producto
     const productResult = await marketplaceProductsService.getProductById(productId);
     
     if (productResult.success) {
       setProduct(productResult.product);
 
-      // Obtener productos relacionados
       const relatedResult = await marketplaceProductsService.getRecommendedProducts(
         productResult.product.category,
         productId
@@ -53,24 +65,68 @@ export default function ProductDetailScreen({ route, navigation }) {
     setLoading(false);
   };
 
-  const handleAddToCart = () => {
+  const checkIfInCart = async () => {
+    const isInCart = await cartService.isInCart(productId);
+    setInCart(isInCart);
+    
+    if (isInCart) {
+      const qty = await cartService.getProductQuantity(productId);
+      setCartQuantity(qty);
+      // Si está en el carrito, mostramos la cantidad actual del carrito
+      setQuantity(qty);
+    }
+  };
+
+  const handleAddToCart = async () => {
+    if (!product) return;
+
     if (quantity > product.stock) {
       Alert.alert('Error', 'No hay suficiente stock disponible');
       return;
     }
 
-    // TODO: Agregar al carrito (implementar context de carrito)
-    Alert.alert(
-      'Agregado al carrito',
-      `${quantity} ${product.unit} de ${product.name}`,
-      [
-        { text: 'Seguir comprando', style: 'cancel' },
-        {
-          text: 'Ver carrito',
-          onPress: () => navigation.navigate('Cart')
-        }
-      ]
-    );
+    if (inCart) {
+      // Si ya está en el carrito, actualizamos la cantidad
+      const result = await cartService.updateQuantity(productId, quantity);
+      
+      if (result.success) {
+        setCartQuantity(quantity);
+        Alert.alert(
+          'Carrito actualizado',
+          `Cantidad actualizada: ${quantity} ${product.unit} de ${product.name}`,
+          [
+            { text: 'Seguir comprando', style: 'cancel' },
+            {
+              text: 'Ver carrito',
+              onPress: () => navigation.navigate('Cart')
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', 'No se pudo actualizar el carrito');
+      }
+    } else {
+      // Si no está en el carrito, lo agregamos
+      const result = await cartService.addToCart(product, quantity);
+      
+      if (result.success) {
+        setInCart(true);
+        setCartQuantity(quantity);
+        Alert.alert(
+          'Agregado al carrito',
+          `${quantity} ${product.unit} de ${product.name}`,
+          [
+            { text: 'Seguir comprando', style: 'cancel' },
+            {
+              text: 'Ver carrito',
+              onPress: () => navigation.navigate('Cart')
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', 'No se pudo agregar al carrito');
+      }
+    }
   };
 
   const incrementQuantity = () => {
@@ -103,12 +159,19 @@ export default function ProductDetailScreen({ route, navigation }) {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('Cart')}>
-          <Ionicons name="cart-outline" size={24} color="#333" />
+          <View>
+            <Ionicons name="cart-outline" size={24} color="#333" />
+            {cartQuantity > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartQuantity}</Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
 
       <ScrollView>
-        {/* Imágenes del producto */}
+        {/* Imágenes del producto con Cloudinary optimizado */}
         <View style={styles.imageSection}>
           <ScrollView
             horizontal
@@ -124,7 +187,9 @@ export default function ProductDetailScreen({ route, navigation }) {
               product.images.map((image, index) => (
                 <Image
                   key={index}
-                  source={{ uri: image }}
+                  source={{ 
+                    uri: cloudinaryService.getProductImageUrl(image, 'large')
+                  }}
                   style={styles.productImage}
                   resizeMode="cover"
                 />
@@ -157,7 +222,7 @@ export default function ProductDetailScreen({ route, navigation }) {
           <View style={styles.providerInfo}>
             <TouchableOpacity
               onPress={() =>
-                navigation.navigate('ProviderProfile', {
+                navigation.navigate('ProviderProfileMarketplace', {
                   providerId: product.providerId
                 })
               }
@@ -193,6 +258,16 @@ export default function ProductDetailScreen({ route, navigation }) {
                 : 'Sin stock'}
             </Text>
           </View>
+
+          {/* Indicador de que está en el carrito */}
+          {inCart && (
+            <View style={styles.inCartBanner}>
+              <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+              <Text style={styles.inCartText}>
+                Ya tienes {cartQuantity} {product.unit} en tu carrito
+              </Text>
+            </View>
+          )}
 
           {/* Descripción */}
           <View style={styles.section}>
@@ -244,7 +319,7 @@ export default function ProductDetailScreen({ route, navigation }) {
               </View>
             )}
 
-          {/* Productos relacionados */}
+          {/* Productos relacionados con Cloudinary */}
           {relatedProducts.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>También te puede interesar</Text>
@@ -259,7 +334,9 @@ export default function ProductDetailScreen({ route, navigation }) {
                   >
                     {item.images && item.images[0] ? (
                       <Image
-                        source={{ uri: item.images[0] }}
+                        source={{ 
+                          uri: cloudinaryService.getThumbnailUrl(item.images[0], 200)
+                        }}
                         style={styles.relatedImage}
                       />
                     ) : (
@@ -289,15 +366,25 @@ export default function ProductDetailScreen({ route, navigation }) {
             <TouchableOpacity
               style={styles.quantityButton}
               onPress={decrementQuantity}
+              disabled={quantity <= 1}
             >
-              <Ionicons name="remove" size={20} color="#333" />
+              <Ionicons 
+                name="remove" 
+                size={20} 
+                color={quantity <= 1 ? '#ccc' : '#333'} 
+              />
             </TouchableOpacity>
             <Text style={styles.quantityText}>{quantity}</Text>
             <TouchableOpacity
               style={styles.quantityButton}
               onPress={incrementQuantity}
+              disabled={quantity >= product.stock}
             >
-              <Ionicons name="add" size={20} color="#333" />
+              <Ionicons 
+                name="add" 
+                size={20} 
+                color={quantity >= product.stock ? '#ccc' : '#333'} 
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -312,7 +399,11 @@ export default function ProductDetailScreen({ route, navigation }) {
         >
           <Ionicons name="cart" size={20} color="white" />
           <Text style={styles.addButtonText}>
-            {product.stock === 0 ? 'Sin stock' : 'Agregar al carrito'}
+            {product.stock === 0 
+              ? 'Sin stock' 
+              : inCart 
+                ? 'Actualizar carrito' 
+                : 'Agregar al carrito'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -343,6 +434,23 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
     backgroundColor: 'rgba(255,255,255,0.9)',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#4CAF50',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  cartBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   imageSection: {
     marginTop: 70,
@@ -429,6 +537,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginLeft: 5,
+  },
+  inCartBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f5e9',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  inCartText: {
+    fontSize: 14,
+    color: '#2e7d32',
+    fontWeight: '600',
+    marginLeft: 8,
   },
   section: {
     marginTop: 20,

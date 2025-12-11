@@ -10,7 +10,6 @@ import UserTypeSelectionScreen from '../screens/UserTypeSelectionScreen';
 // Screens de Usuario Consumidor
 import HealthQuestionnaireScreen from '../modules/user-management/screens/HealthQuestionnaireScreen';
 import LoginScreen from '../modules/user-management/screens/LoginScreen';
-import ProfileScreen from '../modules/user-management/screens/ProfileScreen';
 import RegisterScreen from '../modules/user-management/screens/RegisterScreen';
 import MainTabNavigator from './MainTabNavigator';
 
@@ -28,8 +27,8 @@ import ProviderRegisterScreen from '../modules/providers/screens/ProviderRegiste
 // Screens de Marketplace
 import CartScreen from '../modules/marketplace/screens/CartScreen';
 import CheckoutScreen from '../modules/marketplace/screens/CheckoutScreen';
-import MarketplaceScreen from '../modules/marketplace/screens/MarketplaceScreen';
 import ProductDetailScreen from '../modules/marketplace/screens/ProductDetailScreen';
+import ProviderProfileScreenMarketplace from '../modules/marketplace/screens/ProviderProfileScreen';
 
 const Stack = createStackNavigator();
 
@@ -57,21 +56,19 @@ export default function AppNavigator() {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!providerProfile?.isProfileComplete ? (
-          // Proveedor debe completar su perfil
           <Stack.Screen 
             name="ProviderProfileSetup" 
             component={ProviderProfileSetupScreen} 
           />
         ) : (
-          // Proveedor con perfil completo - Dashboard y funcionalidades
           <>
             <Stack.Screen 
               name="ProviderDashboard" 
               component={ProviderDashboardScreen} 
             />
             <Stack.Screen 
-            name="ProviderProfile"  // ← AGREGA ESTA LÍNEA
-            component={ProviderProfileScreen} 
+              name="ProviderProfile"
+              component={ProviderProfileScreen} 
             />
             <Stack.Screen 
               name="AddProduct" 
@@ -101,24 +98,19 @@ export default function AppNavigator() {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!userProfile?.isProfileComplete ? (
-          // Usuario debe completar cuestionario de salud
           <Stack.Screen 
             name="HealthQuestionnaire" 
             component={HealthQuestionnaireScreen} 
           />
         ) : (
-          
-          // Usuario con perfil completo - Acceso a todas las funcionalidades
           <>
-            <Stack.Screen name="Main" component={MainTabNavigator} />
+            {/* Tab Navigator Principal (Home, Marketplace, etc.) */}
             <Stack.Screen 
-              name="Profile" 
-              component={ProfileScreen} 
+              name="Main" 
+              component={MainTabNavigator} 
             />
-            <Stack.Screen 
-              name="Marketplace" 
-              component={MarketplaceScreen} 
-            />
+            
+            {/* Pantallas de Stack (se abren sobre los tabs) */}
             <Stack.Screen 
               name="ProductDetail" 
               component={ProductDetailScreen} 
@@ -132,8 +124,8 @@ export default function AppNavigator() {
               component={CheckoutScreen} 
             />
             <Stack.Screen 
-              name="ProviderProfile" 
-              component={ProviderProfileScreen} 
+              name="ProviderProfileMarketplace" 
+              component={ProviderProfileScreenMarketplace} 
             />
           </>
         )}
@@ -141,7 +133,7 @@ export default function AppNavigator() {
     );
   }
 
-  // Si no hay nadie logueado - Pantallas de autenticación
+  // Si no hay nadie logueado
   console.log('✅ Navegación de SELECCIÓN/AUTH activada');
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -149,11 +141,7 @@ export default function AppNavigator() {
         name="UserTypeSelection" 
         component={UserTypeSelectionScreen} 
       />
-      
-      {/* Rutas de Consumidor */}
       <Stack.Screen name="ConsumerAuth" component={ConsumerAuthNavigator} />
-      
-      {/* Rutas de Proveedor */}
       <Stack.Screen name="ProviderAuth" component={ProviderAuthNavigator} />
     </Stack.Navigator>
   );
@@ -175,7 +163,6 @@ function ProviderAuthNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProviderLogin" component={ProviderLoginScreen} />
       <Stack.Screen name="ProviderRegister" component={ProviderRegisterScreen} />
-
     </Stack.Navigator>
   );
 }

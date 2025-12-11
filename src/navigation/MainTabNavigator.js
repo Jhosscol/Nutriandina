@@ -1,5 +1,7 @@
+// src/navigation/MainTabNavigator.js
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import MarketplaceScreen from '../modules/marketplace/screens/MarketplaceScreen';
 import NutritionNavigator from '../modules/nutrition/navigation/NutritionNavigator';
 import ProfileScreen from '../modules/user-management/screens/ProfileScreen';
 
@@ -14,7 +16,7 @@ export default function MainTabNavigator() {
         tabBarInactiveTintColor: '#999',
         tabBarStyle: {
           paddingTop: 8,
-          paddingBottom: 30, // Aumenta este valor (prueba con 12-20)
+          paddingBottom: 30,
           height: 92,
         },
         tabBarLabelStyle: {
@@ -35,6 +37,17 @@ export default function MainTabNavigator() {
       />
 
       <Tab.Screen 
+        name="Marketplace" 
+        component={MarketplaceScreen}
+        options={{
+          tabBarLabel: 'Marketplace',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="cart" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tab.Screen 
         name="ProfileTab" 
         component={ProfileScreen}
         options={{
@@ -44,20 +57,6 @@ export default function MainTabNavigator() {
           ),
         }}
       />
-
-      {/* Puedes agregar más tabs aquí */}
-      {/* 
-      <Tab.Screen 
-        name="Exercise" 
-        component={ExerciseNavigator}
-        options={{
-          tabBarLabel: 'Ejercicio',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="dumbbell" size={size} color={color} />
-          ),
-        }}
-      />
-      */}
     </Tab.Navigator>
   );
 }

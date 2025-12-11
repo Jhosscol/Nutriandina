@@ -231,12 +231,10 @@ export default function ShoppingListScreen({ route, navigation }) {
                 icon="cart"
                 onPress={() => navigation.navigate('Marketplace')}
                 style={styles.marketplaceButton}
-                disabled
               >
                 Ir al Marketplace
               </Button>
               <Text variant="bodySmall" style={styles.comingSoon}>
-                Próximamente disponible
               </Text>
             </View>
           </Card.Content>
