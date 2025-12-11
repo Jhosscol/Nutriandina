@@ -4,7 +4,7 @@ import { getAuth } from 'firebase/auth';
 import { Alert } from 'react-native';
 import { obtenerPerfilSalud as getPerfilFromMongo } from '../../../services/mongodb';
 
-const API_URL = 'http://10.180.21.171:3000/api/nutrition';
+const API_URL = 'http://192.168.10.100:3000/api/nutrition';
 
 const api = axios.create({
   baseURL: API_URL,
