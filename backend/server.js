@@ -18,21 +18,67 @@ admin.initializeApp({
 });
 
 console.log('✅ Firebase Admin inicializado');
+async function inicializarForumDB(db) {
+  try {
+    console.log('🔧 Verificando colección forum_posts...');
+    
+    // Verificar si la colección existe
+    const collections = await db.listCollections({ name: 'forum_posts' }).toArray();
+    
+    if (collections.length === 0) {
+      console.log('📝 Creando colección forum_posts...');
+      await db.createCollection('forum_posts');
+      
+      // Crear índices para optimizar consultas
+      await db.collection('forum_posts').createIndex({ userId: 1, createdAt: -1 });
+      await db.collection('forum_posts').createIndex({ category: 1, createdAt: -1 });
+      await db.collection('forum_posts').createIndex({ createdAt: -1 });
+      await db.collection('forum_posts').createIndex({ tags: 1 });
+      
+      console.log('✅ Colección forum_posts e índices creados correctamente');
+    } else {
+      console.log('✅ Colección forum_posts ya existe');
+    }
+  } catch (error) {
+    console.error('❌ Error al inicializar forum_posts:', error);
+  }
+}
 
 // ====== MONGODB ======
 let db;
 const client = new MongoClient(process.env.MONGODB_URI);
 
 client.connect()
-  .then(() => {
+  .then(async () => {
     db = client.db('nutriandina');
     console.log('✅ MongoDB conectado');
+    await inicializarForumDB(db);
+    // 🔥 MOVER TODO ESTO AQUÍ ADENTRO:
+    const appointmentsRouter = require('./routes/appointmentsroutes')(db, verificarToken);
+    const forumRouter = require('./routes/forumroutes')(db, verificarToken, verificarTokenOpcional);
+    const blogsRouter = require('./routes/blogsroutes')(db, verificarToken, verificarTokenOpcional);
+    const chatbotRouter = require('./routes/chatbotroutes')(db, verificarToken);
+
+    // ====== REGISTRAR RUTAS DE MÓDULOS ======
+    app.use('/api/appointments', appointmentsRouter);
+    app.use('/api/forum', forumRouter);
+    app.use('/api/blogs', blogsRouter);
+    app.use('/api/chatbot', chatbotRouter);
+    
+    console.log('✅ Rutas de módulos registradas');
+    console.log('🔍 Verificando rutas registradas:');
+    app._router.stack.forEach(function(r){
+      if (r.route && r.route.path){
+        console.log('  📍', r.route.path);
+      } else if (r.name === 'router' && r.regexp) {
+        console.log('  📂', r.regexp);
+      }
+    });
   })
   .catch(err => {
     console.error('❌ Error conectando a MongoDB:', err);
     process.exit(1);
   });
-
 // ====== MIDDLEWARE DE AUTENTICACIÓN ======
 const verificarToken = async (req, res, next) => {
   try {
@@ -1052,9 +1098,23 @@ app.get('/', (req, res) => {
   });
 });
 
+
 // ===== CRUD GENÉRICO (PARA OTRAS COLECCIONES) =====
 
-app.post('/api/:collection', verificarToken, async (req, res) => {
+// ===== CRUD GENÉRICO (PARA OTRAS COLECCIONES) =====
+// 🔥 Lista de colecciones que tienen sus propias rutas específicas
+const EXCLUDED_COLLECTIONS = ['forum', 'blogs', 'appointments', 'chatbot', 'nutrition'];
+
+// Middleware para verificar si es una colección excluida
+const checkExcludedCollection = (req, res, next) => {
+  const collection = req.params.collection;
+  if (EXCLUDED_COLLECTIONS.includes(collection)) {
+    return next('route'); // Salta esta ruta y continúa con la siguiente
+  }
+  next();
+};
+
+app.post('/api/:collection', checkExcludedCollection, verificarToken, async (req, res) => {
   try {
     const coleccion = req.params.collection;
     const datos = req.body;
@@ -1083,7 +1143,7 @@ app.post('/api/:collection', verificarToken, async (req, res) => {
   }
 });
 
-app.get('/api/:collection', verificarToken, async (req, res) => {
+app.get('/api/:collection', checkExcludedCollection, verificarToken, async (req, res) => {
   try {
     const coleccion = req.params.collection;
     
@@ -1102,10 +1162,14 @@ app.get('/api/:collection', verificarToken, async (req, res) => {
   }
 });
 
-app.get('/api/:collection/:id', verificarToken, async (req, res) => {
+app.get('/api/:collection/:id', checkExcludedCollection, verificarToken, async (req, res, next) => {
   try {
     const coleccion = req.params.collection;
     const id = req.params.id;
+    
+    if (!ObjectId.isValid(id)) {
+      return next();
+    }
     
     const documento = await db.collection(coleccion).findOne({
       _id: new ObjectId(id),
@@ -1128,7 +1192,7 @@ app.get('/api/:collection/:id', verificarToken, async (req, res) => {
   }
 });
 
-app.put('/api/:collection/:id', verificarToken, async (req, res) => {
+app.put('/api/:collection/:id', checkExcludedCollection, verificarToken, async (req, res) => {
   try {
     const coleccion = req.params.collection;
     const id = req.params.id;
@@ -1167,7 +1231,7 @@ app.put('/api/:collection/:id', verificarToken, async (req, res) => {
   }
 });
 
-app.delete('/api/:collection/:id', verificarToken, async (req, res) => {
+app.delete('/api/:collection/:id', checkExcludedCollection, verificarToken, async (req, res) => {
   try {
     const coleccion = req.params.collection;
     const id = req.params.id;
@@ -1197,7 +1261,7 @@ app.delete('/api/:collection/:id', verificarToken, async (req, res) => {
   }
 });
 
-app.post('/api/:collection/search', verificarToken, async (req, res) => {
+app.post('/api/:collection/search', checkExcludedCollection, verificarToken, async (req, res) => {
   try {
     const coleccion = req.params.collection;
     const filtros = req.body.filters || {};
@@ -1222,7 +1286,7 @@ app.post('/api/:collection/search', verificarToken, async (req, res) => {
   }
 });
 
-app.get('/api/:collection/count', verificarToken, async (req, res) => {
+app.get('/api/:collection/count', checkExcludedCollection, verificarToken, async (req, res) => {
   try {
     const coleccion = req.params.collection;
     

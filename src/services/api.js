@@ -3,7 +3,7 @@ import { auth } from '../config/firebase';
 
 // Cambia esto según donde esté tu backend
 const API_URL = __DEV__ 
-  ? 'http://localhost:3000/api'  // Desarrollo
+  ? 'http://192.168.1.8:3000/api'  // Desarrollo
   : 'https://tu-backend-production.com/api'; // Producción
 
 // Helper para obtener token
